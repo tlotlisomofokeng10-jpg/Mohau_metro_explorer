@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SA Metro Socio-Economic Explorer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #f9f9f9;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        #controls {
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 0 5px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background: #fff;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background: #e9ecef;
+        }
+
+        button.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        #chart {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+            padding: 20px;
+            position: relative;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 14px;
+            text-align: left;
+            z-index: 10;
+        }
+
+        circle {
+            transition: opacity 0.3s, stroke-width 0.1s;
+            cursor: pointer;
+        }
+
+        .label {
+            font-size: 10px;
+            fill: #555;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Metro Socio-Economic & Density Explorer</h2>
+    <div id="controls">
+        <button onclick="drawMap('Johannesburg')" class="active" id="btn-Johannesburg">Johannesburg</button>
+        <button onclick="drawMap('Pretoria')" id="btn-Pretoria">Pretoria</button>
+        <button onclick="drawMap('Durban')" id="btn-Durban">Durban</button>
+        <button onclick="drawMap('Cape Town')" id="btn-Cape Town">Cape Town</button>
+    </div>
+
+    <div id="chart"></div>
+    <div id="tooltip" class="tooltip"></div>
+
+    <script>
+        const cityData = {
+            "Johannesburg": [
+                { "name": "Sandton", "lsm": 10, "density": 3500, "lat": -26.1076, "lng": 28.0567 },
+                { "name": "Alexandra", "lsm": 3, "density": 45000, "lat": -26.1051, "lng": 28.0967 },
+                { "name": "Hyde Park", "lsm": 10, "density": 2000, "lat": -26.1246, "lng": 28.0315 },
+                { "name": "Houghton", "lsm": 10, "density": 2500, "lat": -26.1627, "lng": 28.0583 },
+                { "name": "Bryanston", "lsm": 9, "density": 2800, "lat": -26.0440, "lng": 28.0264 },
+                { "name": "Midrand", "lsm": 8, "density": 5000, "lat": -25.9964, "lng": 28.1228 },
+                { "name": "Diepsloot", "lsm": 2, "density": 55000, "lat": -25.9328, "lng": 28.0125 },
+                { "name": "Hillbrow", "lsm": 4, "density": 70000, "lat": -26.1866, "lng": 28.0469 },
+                { "name": "Soweto", "lsm": 3, "density": 30000, "lat": -26.2678, "lng": 27.8585 },
+                { "name": "Diepkloof", "lsm": 5, "density": 18000, "lat": -26.2366, "lng": 27.9515 },
+                { "name": "Alberton", "lsm": 7, "density": 4000, "lat": -26.2674, "lng": 28.1219 },
+                { "name": "Edenvale", "lsm": 8, "density": 4200, "lat": -26.1420, "lng": 28.1524 },
+                { "name": "Boksburg", "lsm": 6, "density": 6500, "lat": -26.2166, "lng": 28.2583 },
+                { "name": "Benoni", "lsm": 6, "density": 5500, "lat": -26.1883, "lng": 28.3206 },
+                { "name": "Kempton Park", "lsm": 7, "density": 5000, "lat": -26.1000, "lng": 28.2333 },
+                { "name": "Tembisa", "lsm": 3, "density": 50000, "lat": -25.9960, "lng": 28.2268 }
+            ],
+            "Pretoria": [
+                { "name": "Pretoria Central", "lsm": 5, "density": 40000, "lat": -25.7479, "lng": 28.1878 },
+                { "name": "Waterkloof", "lsm": 10, "density": 2000, "lat": -25.7830, "lng": 28.2333 },
+                { "name": "Hatfield", "lsm": 7, "density": 15000, "lat": -25.7485, "lng": 28.2380 },
+                { "name": "Mamelodi", "lsm": 3, "density": 50000, "lat": -25.7000, "lng": 28.3833 },
+                { "name": "Centurion", "lsm": 8, "density": 4500, "lat": -25.8603, "lng": 28.1894 },
+                { "name": "Soshanguve", "lsm": 4, "density": 45000, "lat": -25.5333, "lng": 28.1000 },
+                { "name": "Atteridgeville", "lsm": 4, "density": 38000, "lat": -25.7667, "lng": 28.0667 },
+                { "name": "Brooklyn", "lsm": 10, "density": 2500, "lat": -25.7667, "lng": 28.2333 },
+                { "name": "Sunnyside", "lsm": 6, "density": 55000, "lat": -25.7500, "lng": 28.2000 },
+                { "name": "Menlyn", "lsm": 9, "density": 3500, "lat": -25.7833, "lng": 28.2833 },
+                { "name": "Akasia", "lsm": 7, "density": 4000, "lat": -25.6167, "lng": 28.1000 },
+                { "name": "Irene", "lsm": 9, "density": 2200, "lat": -25.8667, "lng": 28.2167 },
+                { "name": "Silver Lakes", "lsm": 10, "density": 1500, "lat": -25.7667, "lng": 28.3500 }
+            ],
+            "Durban": [
+                { "name": "Berea", "lsm": 8, "density": 12000, "lat": -29.8500, "lng": 31.0000 },
+                { "name": "Umlazi", "lsm": 3, "density": 60000, "lat": -29.9667, "lng": 30.8833 },
+                { "name": "uMhlanga", "lsm": 10, "density": 3000, "lat": -29.7256, "lng": 31.0861 },
+                { "name": "Durban North", "lsm": 9, "density": 5000, "lat": -29.8000, "lng": 31.0333 },
+                { "name": "Chatsworth", "lsm": 6, "density": 18000, "lat": -29.9167, "lng": 30.8833 },
+                { "name": "KwaMashu", "lsm": 4, "density": 55000, "lat": -29.7500, "lng": 30.9833 },
+                { "name": "Phoenix", "lsm": 6, "density": 25000, "lat": -29.7000, "lng": 31.0000 },
+                { "name": "Pinetown", "lsm": 7, "density": 8000, "lat": -29.8167, "lng": 30.8667 },
+                { "name": "Westville", "lsm": 9, "density": 3500, "lat": -29.8333, "lng": 30.9333 },
+                { "name": "Bluff", "lsm": 7, "density": 7500, "lat": -29.9333, "lng": 31.0167 },
+                { "name": "Amanzimtoti", "lsm": 8, "density": 5000, "lat": -30.0500, "lng": 30.8833 },
+                { "name": "Hillcrest", "lsm": 10, "density": 2000, "lat": -29.7833, "lng": 30.7667 },
+                { "name": "Inanda", "lsm": 3, "density": 48000, "lat": -29.7000, "lng": 30.9333 },
+                { "name": "Morningside", "lsm": 9, "density": 9000, "lat": -29.8333, "lng": 31.0167 }
+            ],
+            "Cape Town": [
+                { "name": "City Bowl", "lsm": 9, "density": 18000, "lat": -33.9249, "lng": 18.4241 },
+                { "name": "Khayelitsha", "lsm": 2, "density": 75000, "lat": -34.0333, "lng": 18.6667 },
+                { "name": "Constantia", "lsm": 10, "density": 1500, "lat": -34.0167, "lng": 18.4333 },
+                { "name": "Sea Point", "lsm": 8, "density": 25000, "lat": -33.9167, "lng": 18.3833 },
+                { "name": "Mitchells Plain", "lsm": 5, "density": 45000, "lat": -34.0500, "lng": 18.6167 },
+                { "name": "Bellville", "lsm": 8, "density": 6000, "lat": -33.9000, "lng": 18.6333 },
+                { "name": "Gugulethu", "lsm": 3, "density": 65000, "lat": -33.9833, "lng": 18.5667 },
+                { "name": "Rondebosch", "lsm": 9, "density": 5000, "lat": -33.9667, "lng": 18.4667 },
+                { "name": "Claremont", "lsm": 9, "density": 8000, "lat": -33.9833, "lng": 18.4667 },
+                { "name": "Camps Bay", "lsm": 10, "density": 2500, "lat": -33.9500, "lng": 18.3833 },
+                { "name": "Bloubergstrand", "lsm": 9, "density": 4000, "lat": -33.8000, "lng": 18.4667 },
+                { "name": "Nyanga", "lsm": 2, "density": 80000, "lat": -33.9833, "lng": 18.5833 },
+                { "name": "Milnerton", "lsm": 8, "density": 5500, "lat": -33.8667, "lng": 18.5000 },
+                { "name": "Hout Bay", "lsm": 8, "density": 4500, "lat": -34.0333, "lng": 18.3500 },
+                { "name": "Somerset West", "lsm": 9, "density": 3500, "lat": -34.0833, "lng": 18.8500 }
+            ]
+        };
+
+        const width = 800, height = 600, padding = 60;
+        const svg = d3.select("#chart").append("svg").attr("width", width).attr("height", height);
+        const tooltip = d3.select("#tooltip");
+
+        const colorScale = d3.scaleSequential(d3.interpolateRdYlBu).domain([1, 10]);
+
+        function drawMap(city) {
+            d3.selectAll("button").classed("active", false);
+            d3.select(`#btn-${city.replace(' ', '\\ ')}`).classed("active", true);
+
+            const data = cityData[city];
+            svg.selectAll("*").remove();
+
+            const xScale = d3.scaleLinear()
+                .domain(d3.extent(data, d => d.lng))
+                .range([padding, width - padding]);
+
+            const yScale = d3.scaleLinear()
+                .domain(d3.extent(data, d => d.lat))
+                .range([height - padding, padding]);
+
+            const rScale = d3.scaleSqrt()
+                .domain([0, d3.max(data, d => d.density)])
+                .range([4, 15]);
+
+            const nodes = svg.selectAll("g")
+                .data(data)
+                .enter()
+                .append("g")
+                .attr("transform", d => `translate(${xScale(d.lng)},${yScale(d.lat)})`);
+
+            const circles = nodes.append("circle")
+                .attr("r", d => rScale(d.density))
+                .attr("fill", d => colorScale(d.lsm))
+                .attr("stroke", "#333")
+                .attr("stroke-width", 1)
+                .attr("opacity", 0.9);
+
+            nodes.append("text")
+                .text(d => d.name)
+                .attr("class", "label")
+                .attr("dy", -12)
+                .attr("text-anchor", "middle");
+
+            circles.on("mouseover", function (event, d) {
+                d3.selectAll("circle").attr("opacity", 0.15);
+
+                d3.select(this.parentNode).raise();
+                d3.select(this)
+                    .attr("opacity", 1)
+                    .attr("stroke-width", 3)
+                    .attr("stroke", "#000")
+                    .transition().duration(150)
+                    .attr("r", rScale(d.density) * 2.5);
+
+                tooltip.style("opacity", 1)
+                    .html(`<strong>${d.name}</strong><br>LSM: ${d.lsm}<br>Density: ${d.density.toLocaleString()}/km²`)
+                    .style("left", (event.pageX + 15) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+                .on("mouseout", function (event, d) {
+                    d3.selectAll("circle")
+                        .attr("opacity", 0.9)
+                        .attr("stroke-width", 1)
+                        .transition().duration(150)
+                        .attr("r", d => rScale(d.density));
+
+                    tooltip.style("opacity", 0);
+                });
+        }
+
+        drawMap("Johannesburg");
+    </script>
+</body>
+
+</html>
