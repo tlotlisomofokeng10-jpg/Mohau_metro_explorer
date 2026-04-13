@@ -4,92 +4,970 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SA_LSM_2026 Explorer</title>
+    <title>SA Metro Explorer — Living Standards & Density</title>
+    <meta name="description"
+        content="Explore South Africa's major metro areas through interactive maps and data visualizations of Living Standards Measure (LSM) and population density.">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <!-- D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
     <style>
-        body {
-            font-family: sans-serif;
-            background: #f9f9f9;
-            text-align: center;
+        /* ── CSS Custom Properties (Design Tokens) ── */
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-card: rgba(255, 255, 255, 0.85);
+            --bg-glass: rgba(255, 255, 255, 0.7);
+            --border-glass: rgba(0, 0, 0, 0.08);
+            --border-hover: rgba(0, 0, 0, 0.15);
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #0891b2;
+            --accent-purple: #7c3aed;
+            --accent-emerald: #059669;
+            --accent-amber: #d97706;
+            --accent-rose: #e11d48;
+            --gradient-hero: linear-gradient(135deg, #3b82f6 0%, #7c3aed 50%, #0891b2 100%);
+            --gradient-card: linear-gradient(145deg, rgba(59, 130, 246, 0.06), rgba(124, 58, 237, 0.03));
+            --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.08);
+            --shadow-glow: 0 4px 30px rgba(59, 130, 246, 0.1);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --transition-fast: 0.15s ease;
+            --transition-med: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ── Reset & Base ── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
             margin: 0;
-            padding: 20px;
+            padding: 0;
         }
 
-        #controls {
-            margin-bottom: 20px;
+        html {
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
-        button {
-            padding: 10px 20px;
-            margin: 0 5px;
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* ── Background Effects ── */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(59, 130, 246, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(124, 58, 237, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(8, 145, 178, 0.04) 0%, transparent 50%);
+            z-index: 0;
+            pointer-events: none;
+            animation: bgDrift 20s ease-in-out infinite alternate;
+        }
+
+        @keyframes bgDrift {
+            0% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(20px, -20px) rotate(2deg);
+            }
+        }
+
+        /* ── Layout Container ── */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px 20px 60px;
+        }
+
+        /* ── Header ── */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 20px 30px;
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--accent-cyan);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 16px;
+            animation: fadeInDown 0.6s ease;
+        }
+
+        .header-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-emerald);
+            box-shadow: 0 0 8px var(--accent-emerald);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        h1 {
+            font-size: clamp(1.75rem, 4vw, 2.75rem);
+            font-weight: 800;
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+            margin-bottom: 12px;
+            animation: fadeInDown 0.6s ease 0.1s both;
+        }
+
+        .header-subtitle {
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            color: var(--text-secondary);
+            font-weight: 300;
+            max-width: 600px;
+            margin: 0 auto;
+            animation: fadeInDown 0.6s ease 0.2s both;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ── City Selector ── */
+        .city-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 32px;
+            animation: fadeIn 0.6s ease 0.3s both;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .city-btn {
+            position: relative;
+            padding: 10px 24px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 100px;
+            color: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
-            border: 1px solid #ccc;
-            background: #fff;
-            border-radius: 5px;
-            font-size: 16px;
-            transition: all 0.2s ease;
+            transition: all var(--transition-med);
+            overflow: hidden;
         }
 
-        button:hover {
-            background: #e9ecef;
+        .city-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--gradient-hero);
+            opacity: 0;
+            transition: opacity var(--transition-med);
+            border-radius: 100px;
         }
 
-        button.active {
-            background: #007bff;
-            color: white;
-            border-color: #007bff;
+        .city-btn span {
+            position: relative;
+            z-index: 1;
         }
 
-        #chart {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            display: inline-block;
+        .city-btn:hover {
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.12);
+        }
+
+        .city-btn.active {
+            color: #fff;
+            border-color: transparent;
+            box-shadow: 0 4px 25px rgba(59, 130, 246, 0.3);
+        }
+
+        .city-btn.active::before {
+            opacity: 1;
+        }
+
+        /* ── Stats Bar ── */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+            animation: fadeIn 0.6s ease 0.4s both;
+        }
+
+        .stat-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
             padding: 20px;
+            text-align: center;
+            transition: all var(--transition-med);
+        }
+
+        .stat-card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        /* ── Dashboard Grid ── */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            animation: fadeIn 0.6s ease 0.5s both;
+        }
+
+        /* ── Glass Panel ── */
+        .panel {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: all var(--transition-med);
+        }
+
+        .panel:hover {
+            border-color: var(--border-hover);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .panel-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .panel-icon.map-icon {
+            background: rgba(59, 130, 246, 0.15);
+        }
+
+        .panel-icon.chart-icon {
+            background: rgba(139, 92, 246, 0.15);
+        }
+
+        .panel-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .panel-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .panel-body {
+            padding: 0;
             position: relative;
         }
 
-        .tooltip {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.8);
-            color: #fff;
-            padding: 10px;
-            border-radius: 4px;
+        /* ── Leaflet Map ── */
+        #map {
+            width: 100%;
+            height: 500px;
+        }
+
+        .leaflet-container {
+            background: #eef2f6 !important;
+            border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+        }
+
+        /* Custom map popup */
+        .custom-popup .leaflet-popup-content-wrapper {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            border-radius: var(--radius-lg);
+            color: var(--text-primary);
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.14);
+            padding: 0;
+        }
+
+        .custom-popup .leaflet-popup-tip {
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+        }
+
+        .custom-popup .leaflet-popup-content {
+            margin: 12px 16px 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            line-height: 1.6;
+            max-height: 420px;
+            overflow-y: auto;
+        }
+
+        .custom-popup .leaflet-popup-close-button {
+            z-index: 10;
+            color: #64748b !important;
+            font-size: 20px !important;
+            top: 6px !important;
+            right: 8px !important;
+        }
+
+        .popup-name {
+            font-weight: 700;
+            font-size: 15px;
+            margin-bottom: 8px;
+            color: #1e293b;
+        }
+
+        .popup-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+        }
+
+        .popup-label {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .popup-value {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .lsm-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 10px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* ── D3 Chart ── */
+        #chart-container {
+            padding: 20px;
+        }
+
+        #chart {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        #chart svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .d3-tooltip {
+            position: fixed;
+            background: rgba(255, 255, 255, 0.97);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            color: var(--text-primary);
+            padding: 14px 18px;
+            border-radius: var(--radius-md);
             pointer-events: none;
             opacity: 0;
-            transition: opacity 0.2s;
+            transition: opacity var(--transition-fast);
+            font-size: 13px;
+            line-height: 1.6;
+            z-index: 1000;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+            max-width: 220px;
+        }
+
+        .d3-tooltip strong {
             font-size: 14px;
-            text-align: left;
-            z-index: 10;
+            display: block;
+            margin-bottom: 4px;
         }
 
-        circle {
-            transition: opacity 0.3s, stroke-width 0.1s;
+        /* ── Legend ── */
+        .legend {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            padding: 20px;
+            border-top: 1px solid var(--border-glass);
+        }
+
+        .legend-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .legend-gradient {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-bar {
+            width: 120px;
+            height: 10px;
+            border-radius: 5px;
+            background: linear-gradient(to right, #d73027, #f46d43, #fdae61, #fee08b, #d9ef8b, #a6d96a, #66bd63, #1a9850, #006837, #004529);
+        }
+
+        .legend-label {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .legend-size {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-circle {
+            border-radius: 50%;
+            border: 1.5px solid var(--text-muted);
+            opacity: 0.5;
+        }
+
+        /* ── SA Overview Map Panel ── */
+        .overview-section {
+            margin-bottom: 32px;
+            animation: fadeIn 0.6s ease 0.45s both;
+        }
+
+        .overview-panel {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        #sa-overview-map {
+            width: 100%;
+            height: 420px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            #map {
+                height: 400px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px 12px 40px;
+            }
+
+            .header {
+                padding: 24px 12px 20px;
+                margin-bottom: 24px;
+            }
+
+            .city-selector {
+                gap: 8px;
+            }
+
+            .city-btn {
+                padding: 8px 16px;
+                font-size: 13px;
+            }
+
+            .stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .stat-card {
+                padding: 14px;
+            }
+
+            .stat-value {
+                font-size: 1.4rem;
+            }
+
+            #map,
+            #sa-overview-map {
+                height: 300px;
+            }
+
+            .panel-header {
+                padding: 14px 16px;
+            }
+
+            .legend {
+                gap: 12px;
+                padding: 14px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-bar {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .city-btn {
+                padding: 8px 14px;
+                font-size: 12px;
+            }
+
+            .dashboard {
+                gap: 16px;
+            }
+
+            #sa-overview-map {
+                height: 260px;
+            }
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.12);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            padding: 40px 20px 0;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .footer a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* ── Language Toggle ── */
+        .lang-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: 100px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .lang-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
             cursor: pointer;
+            color: var(--text-muted);
+            transition: all var(--transition-med);
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
-        .label {
-            font-size: 10px;
-            fill: #555;
-            pointer-events: none;
+        .lang-btn.active {
+            background: var(--gradient-hero);
+            color: #fff;
+        }
+
+        .lang-btn:hover:not(.active) {
+            color: var(--text-primary);
+        }
+
+        @media (max-width: 480px) {
+            .lang-toggle {
+                top: 12px;
+                right: 12px;
+            }
+            .lang-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
         }
     </style>
 </head>
 
 <body>
 
-    <h2>SA_LSM_2026: Metro Socio-Economic & Density Explorer</h2>
-    <div id="controls">
-        <button onclick="drawMap('Johannesburg')" class="active" id="btn-Johannesburg">Johannesburg</button>
-        <button onclick="drawMap('Pretoria')" id="btn-Pretoria">Pretoria</button>
-        <button onclick="drawMap('Durban')" id="btn-Durban">Durban</button>
-        <button onclick="drawMap('Cape Town')" id="btn-Cape Town">Cape Town</button>
+    <!-- Language Toggle -->
+    <div class="lang-toggle" id="lang-toggle">
+        <button class="lang-btn active" id="lang-en" onclick="setLanguage('en')">🇬🇧 EN</button>
+        <button class="lang-btn" id="lang-ja" onclick="setLanguage('ja')">🇯🇵 日本語</button>
     </div>
 
-    <div id="chart"></div>
-    <div id="tooltip" class="tooltip"></div>
+    <div class="container">
+        <!-- Header -->
+        <header class="header" id="page-header">
+            <div class="header-badge">
+                <span data-i18n="badge">LSM 2026 Dataset</span>
+            </div>
+            <h1 data-i18n="title">South Africa Metro Explorer</h1>
+            <p class="header-subtitle" data-i18n="subtitle">Interactive visualization of Living Standards Measure and population density
+                across SA's major metropolitan areas</p>
+        </header>
+
+        <!-- SA Overview Map -->
+        <section class="overview-section">
+            <div class="overview-panel">
+                <div class="panel-header">
+                    <div class="panel-icon map-icon">🗺️</div>
+                    <div>
+                        <div class="panel-title" data-i18n="overviewTitle">South Africa Overview</div>
+                        <div class="panel-desc" data-i18n="overviewDesc">Click a city marker to explore its suburbs</div>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div id="sa-overview-map"></div>
+                </div>
+            </div>
+        </section>
+
+        <nav class="city-selector" id="city-nav">
+            <button class="city-btn active" onclick="selectCity('Johannesburg')" id="btn-Johannesburg">
+                <span data-i18n="Johannesburg">🏙️ Johannesburg</span>
+            </button>
+            <button class="city-btn" onclick="selectCity('Pretoria')" id="btn-Pretoria">
+                <span data-i18n="Pretoria">🏛️ Pretoria</span>
+            </button>
+            <button class="city-btn" onclick="selectCity('Durban')" id="btn-Durban">
+                <span data-i18n="Durban">🌊 Durban</span>
+            </button>
+            <button class="city-btn" onclick="selectCity('Cape Town')" id="btn-CapeTown">
+                <span data-i18n="Cape Town">⛰️ Cape Town</span>
+            </button>
+        </nav>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar" id="stats-bar">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-areas">—</div>
+                <div class="stat-label" data-i18n="statSuburbs">Suburbs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-avg-lsm">—</div>
+                <div class="stat-label" data-i18n="statAvgLsm">Avg LSM</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-max-density">—</div>
+                <div class="stat-label" data-i18n="statPeakDensity">Peak Density</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-min-density">—</div>
+                <div class="stat-label" data-i18n="statLowestDensity">Lowest Density</div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div class="dashboard">
+            <!-- Map Panel -->
+            <div class="panel" id="map-panel">
+                <div class="panel-header">
+                    <div class="panel-icon map-icon">📍</div>
+                    <div>
+                        <div class="panel-title" id="map-title">Johannesburg — Suburb Map</div>
+                        <div class="panel-desc" data-i18n="mapDesc">Circles sized by density, colored by LSM</div>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div id="map"></div>
+                </div>
+                <div class="legend">
+                    <div class="legend-title">LSM</div>
+                    <div class="legend-gradient">
+                        <span class="legend-label">1</span>
+                        <div class="legend-bar"></div>
+                        <span class="legend-label">10</span>
+                    </div>
+                    <div class="legend-size">
+                        <div class="legend-circle" style="width:8px;height:8px;"></div>
+                        <span class="legend-label" data-i18n="legendLow">Low</span>
+                        <div class="legend-circle" style="width:18px;height:18px;"></div>
+                        <span class="legend-label" data-i18n="legendHigh">High density</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Panel -->
+            <div class="panel" id="chart-panel">
+                <div class="panel-header">
+                    <div class="panel-icon chart-icon">📊</div>
+                    <div>
+                        <div class="panel-title" id="chart-title">Johannesburg — Bubble Chart</div>
+                        <div class="panel-desc" data-i18n="chartDesc">LSM vs longitude, bubble size = density</div>
+                    </div>
+                </div>
+                <div class="panel-body" id="chart-container">
+                    <div id="chart"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p data-i18n-html="footer">SA Metro Explorer &mdash; LSM 2026 Simulated Dataset &bull; Built with
+                <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> &amp;
+                <a href="https://d3js.org" target="_blank" rel="noopener">D3.js</a>
+            </p>
+        </footer>
+    </div>
+
+    <div class="d3-tooltip" id="d3-tooltip"></div>
 
     <script>
+        // ════════════════════════════════════════
+        // TRANSLATIONS
+        // ════════════════════════════════════════
+        let currentLang = 'en';
+
+        const T = {
+            en: {
+                badge: 'LSM 2026 Dataset',
+                title: 'South Africa Metro Explorer',
+                subtitle: "Interactive visualization of Living Standards Measure and population density across SA's major metropolitan areas",
+                overviewTitle: 'South Africa Overview',
+                overviewDesc: 'Click a city marker to explore its suburbs',
+                statSuburbs: 'Suburbs',
+                statAvgLsm: 'Avg LSM',
+                statPeakDensity: 'Peak Density',
+                statLowestDensity: 'Lowest Density',
+                mapDesc: 'Circles sized by density, colored by LSM',
+                chartDesc: 'LSM vs longitude, bubble size = density',
+                legendLow: 'Low',
+                legendHigh: 'High density',
+                suburbMap: 'Suburb Map',
+                bubbleChart: 'Bubble Chart',
+                longitude: 'Longitude',
+                lsmLevel: 'LSM Level',
+                popDensity: 'Population Density',
+                infraTitle: 'Infrastructure & Amenities',
+                loadingImg: 'Loading image...',
+                exploreSuburbs: 'Explore Suburbs →',
+                suburbs: 'Suburbs',
+                avgLsm: 'Avg LSM',
+                peakDensity: 'Peak Density',
+                lsmLevelLabel: 'LSM Level',
+                density: 'Density',
+                footer: 'SA Metro Explorer &mdash; LSM 2026 Simulated Dataset &bull; Built with <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> &amp; <a href="https://d3js.org" target="_blank" rel="noopener">D3.js</a>',
+                lsmLabels: { low: 'Low', medium: 'Medium', high: 'High', premium: 'Premium' },
+                lsmDesc: {
+                    1: 'Characterised by informal housing, limited access to running water and electricity. Residents rely heavily on public transport and informal economies.',
+                    2: 'Characterised by informal housing, limited access to running water and electricity. Residents rely heavily on public transport and informal economies.',
+                    3: 'Mixed formal and informal housing. Basic municipal services are available but inconsistent. Public transport is the primary mode of travel.',
+                    4: 'Formal housing with basic amenities. Access to electricity and water is mostly reliable. Growing access to retail and basic financial services.',
+                    5: 'Established township or suburban area with reliable services. Residents have moderate access to education, healthcare, and formal employment.',
+                    6: 'Working-class suburban area with good infrastructure. Most households have appliances, TV, and mobile phones. Access to shopping centres and public amenities.',
+                    7: 'Middle-class suburb with solid infrastructure, good schools, and retail access. Most households own vehicles and have internet connectivity.',
+                    8: 'Upper-middle-class area with excellent amenities, quality schools, shopping malls, and healthcare facilities. Well-maintained roads and security.',
+                    9: 'Affluent suburb with premium infrastructure, private schools, medical facilities, and leisure amenities. Gated communities and private security are common.',
+                    10: 'Ultra-premium area with world-class amenities, exclusive estates, top-tier schools, and luxury retail. Among the most affluent neighbourhoods in South Africa.'
+                },
+                densityCtx: {
+                    extreme: 'Extremely high density — severe overcrowding',
+                    veryHigh: 'Very high density — significant overcrowding',
+                    high: 'High density — urban, compact living',
+                    moderate: 'Moderate density — suburban to urban',
+                    lowMod: 'Low-moderate density — suburban',
+                    low: 'Low density — spacious, suburban/estate'
+                },
+                indicators: ['Water', 'Electricity', 'Paved Roads', 'Public Transport', 'Schools', 'Healthcare', 'Internet', 'Shopping', 'Security', 'Fibre'],
+                Johannesburg: 'Johannesburg',
+                Pretoria: 'Pretoria',
+                Durban: 'Durban',
+                'Cape Town': 'Cape Town'
+            },
+            ja: {
+                badge: 'LSM 2026 データセット',
+                title: '南アフリカ都市圏エクスプローラー',
+                subtitle: '南アフリカの主要都市圏における生活水準指標（LSM）と人口密度のインタラクティブな可視化',
+                overviewTitle: '南アフリカ概要',
+                overviewDesc: '都市マーカーをクリックして郊外を探索',
+                statSuburbs: '地区数',
+                statAvgLsm: '平均LSM',
+                statPeakDensity: '最高密度',
+                statLowestDensity: '最低密度',
+                mapDesc: '円のサイズは密度、色はLSMを表示',
+                chartDesc: 'LSM対経度、バブルサイズ＝密度',
+                legendLow: '低',
+                legendHigh: '高密度',
+                suburbMap: '地区マップ',
+                bubbleChart: 'バブルチャート',
+                longitude: '経度',
+                lsmLevel: 'LSMレベル',
+                popDensity: '人口密度',
+                infraTitle: 'インフラ・設備',
+                loadingImg: '画像を読み込み中...',
+                exploreSuburbs: '地区を探索 →',
+                suburbs: '地区数',
+                avgLsm: '平均LSM',
+                peakDensity: '最高密度',
+                lsmLevelLabel: 'LSMレベル',
+                density: '密度',
+                footer: '南アフリカ都市圏エクスプローラー &mdash; LSM 2026 模擬データセット &bull; <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> &amp; <a href="https://d3js.org" target="_blank" rel="noopener">D3.js</a> で構築',
+                lsmLabels: { low: '低', medium: '中', high: '高', premium: 'プレミアム' },
+                lsmDesc: {
+                    1: '非公式住宅が特徴で、上下水道や電力へのアクセスが限られています。住民は公共交通機関とインフォーマル経済に大きく依存しています。',
+                    2: '非公式住宅が特徴で、上下水道や電力へのアクセスが限られています。住民は公共交通機関とインフォーマル経済に大きく依存しています。',
+                    3: '公式・非公式住宅が混在。基本的な市町村サービスは利用可能ですが不安定です。公共交通機関が主な移動手段です。',
+                    4: '基本的な設備を備えた公式住宅。電力と水道へのアクセスはほぼ安定しています。小売業や基本的な金融サービスへのアクセスが拡大中。',
+                    5: '安定したサービスを持つ確立されたタウンシップまたは郊外地域。教育、医療、正規雇用への中程度のアクセス。',
+                    6: '良好なインフラを持つ労働者階級の郊外地域。ほとんどの世帯が家電、テレビ、携帯電話を所有。ショッピングセンターや公共施設へのアクセスあり。',
+                    7: '堅実なインフラ、良い学校、小売店へのアクセスを持つ中流階級の郊外。ほとんどの世帯が車を所有し、インターネット接続あり。',
+                    8: '優れた設備、質の高い学校、ショッピングモール、医療施設を持つ上位中流階級地域。整備された道路とセキュリティ。',
+                    9: 'プレミアムインフラ、私立学校、医療施設、レジャー施設を備えた富裕層の郊外。ゲーテッドコミュニティとプライベートセキュリティが一般的。',
+                    10: '世界クラスの設備、高級住宅地、最高級の学校、高級小売店を備えた超プレミアム地域。南アフリカで最も裕福な地域の一つ。'
+                },
+                densityCtx: {
+                    extreme: '極めて高い密度 — 深刻な過密',
+                    veryHigh: '非常に高い密度 — 大幅な過密',
+                    high: '高密度 — 都市的、集約的な生活',
+                    moderate: '中程度の密度 — 郊外から都市的',
+                    lowMod: '低〜中密度 — 郊外的',
+                    low: '低密度 — 広々とした郊外/住宅地'
+                },
+                indicators: ['上下水道', '電力', '舗装道路', '公共交通', '学校', '医療', 'インターネット', 'ショッピング', 'セキュリティ', '光ファイバー'],
+                Johannesburg: 'ヨハネスブルグ',
+                Pretoria: 'プレトリア',
+                Durban: 'ダーバン',
+                'Cape Town': 'ケープタウン'
+            }
+        };
+
+        function t(key) { return T[currentLang][key] || T['en'][key] || key; }
+
+        // ════════════════════════════════════════
+        // DATA
+        // ════════════════════════════════════════
         const cityData = {
             "Johannesburg": [
                 { "name": "Sandton", "lsm": 10, "density": 3500, "lat": -26.1076, "lng": 28.0567 },
@@ -159,78 +1037,655 @@
             ]
         };
 
-        const width = 800, height = 600, padding = 60;
-        const svg = d3.select("#chart").append("svg").attr("width", width).attr("height", height);
-        const tooltip = d3.select("#tooltip");
+        // City center coordinates for the map
+        const cityCenters = {
+            "Johannesburg": { lat: -26.13, lng: 28.08, zoom: 11 },
+            "Pretoria": { lat: -25.74, lng: 28.22, zoom: 11 },
+            "Durban": { lat: -29.83, lng: 30.95, zoom: 11 },
+            "Cape Town": { lat: -33.94, lng: 18.52, zoom: 11 }
+        };
 
-        const colorScale = d3.scaleSequential(d3.interpolateRdYlBu).domain([1, 10]);
+        // LSM color scale (red -> yellow -> green for 1->10)
+        function lsmColor(lsm) {
+            const colors = [
+                '#d73027', '#e2432e', '#f46d43', '#fdae61', '#fee08b',
+                '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850', '#006837'
+            ];
+            return colors[Math.max(0, Math.min(9, lsm - 1))];
+        }
 
-        function drawMap(city) {
-            d3.selectAll("button").classed("active", false);
-            d3.select(`#btn-${city.replace(' ', '\\ ')}`).classed("active", true);
+        function lsmLabel(lsm) {
+            const labels = t('lsmLabels');
+            if (lsm <= 3) return labels.low;
+            if (lsm <= 6) return labels.medium;
+            if (lsm <= 8) return labels.high;
+            return labels.premium;
+        }
 
+        // LSM context descriptions
+        function lsmDescription(lsm) {
+            const descs = t('lsmDesc');
+            return descs[Math.min(10, Math.max(1, lsm))] || descs[1];
+        }
+
+        // Infrastructure indicators based on LSM
+        function lsmIndicators(lsm) {
+            const labels = t('indicators');
+            const values = [lsm >= 4, lsm >= 3, lsm >= 5, true, lsm >= 4, lsm >= 5, lsm >= 6, lsm >= 6, lsm >= 7, lsm >= 8];
+            const result = {};
+            labels.forEach((label, i) => { result[label] = values[i]; });
+            return result;
+        }
+
+        // Density context
+        function densityContext(density) {
+            const ctx = t('densityCtx');
+            if (density >= 50000) return ctx.extreme;
+            if (density >= 30000) return ctx.veryHigh;
+            if (density >= 15000) return ctx.high;
+            if (density >= 8000) return ctx.moderate;
+            if (density >= 4000) return ctx.lowMod;
+            return ctx.low;
+        }
+
+        // Fetch Wikipedia image for a suburb — with SA validation
+        const wikiImageCache = {};
+        async function fetchWikiImage(suburbName, cityName) {
+            const cacheKey = `${suburbName}_${cityName}`;
+            if (wikiImageCache[cacheKey] !== undefined) return wikiImageCache[cacheKey];
+
+            // SA-specific keywords to validate the article is about the right place
+            const saKeywords = [
+                'south africa', 'gauteng', 'kwazulu', 'natal', 'western cape',
+                'eastern cape', 'cape town', 'johannesburg', 'pretoria', 'durban',
+                'tshwane', 'ethekwini', 'suburb', 'township', 'municipality',
+                'city of', 'metropolitan', 'informal settlement', cityName.toLowerCase()
+            ];
+
+            // Try specific SA article titles first
+            const searchTerms = [
+                `${suburbName}, ${cityName}`,
+                `${suburbName}, South Africa`,
+                `${suburbName} (Johannesburg)`,
+                `${suburbName} (Pretoria)`,
+                `${suburbName} (Durban)`,
+                `${suburbName} (Cape Town)`,
+            ];
+
+            for (const term of searchTerms) {
+                try {
+                    const resp = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(term)}`);
+                    if (!resp.ok) continue;
+
+                    const data = await resp.json();
+
+                    // Validate it's about South Africa by checking description + extract
+                    const text = `${data.description || ''} ${data.extract || ''}`.toLowerCase();
+                    const isSA = saKeywords.some(kw => text.includes(kw));
+
+                    if (!isSA) continue; // Skip — wrong country/topic
+
+                    if (data.thumbnail && data.thumbnail.source) {
+                        const imgUrl = data.thumbnail.source.replace(/\/\d+px-/, '/400px-');
+                        wikiImageCache[cacheKey] = imgUrl;
+                        return imgUrl;
+                    }
+                } catch (e) { /* continue to next search term */ }
+            }
+
+            // No validated SA image found — return null for placeholder
+            wikiImageCache[cacheKey] = null;
+            return null;
+        }
+
+        // ════════════════════════════════════════
+        // SOUTH AFRICA OVERVIEW MAP
+        // ════════════════════════════════════════
+        const saMap = L.map('sa-overview-map', {
+            zoomControl: true,
+            scrollWheelZoom: true,
+            attributionControl: true
+        }).setView([-29.0, 25.5], 5);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(saMap);
+
+        // Add city markers on SA overview
+        const cityMarkerData = [
+            { name: 'Johannesburg', lat: -26.2041, lng: 28.0473, suburbs: 16, emoji: '🏙️' },
+            { name: 'Pretoria', lat: -25.7479, lng: 28.2293, suburbs: 13, emoji: '🏛️' },
+            { name: 'Durban', lat: -29.8587, lng: 31.0218, suburbs: 14, emoji: '🌊' },
+            { name: 'Cape Town', lat: -33.9249, lng: 18.4241, suburbs: 15, emoji: '⛰️' }
+        ];
+
+        const saMarkers = {};
+        cityMarkerData.forEach(city => {
+            const pulseIcon = L.divIcon({
+                className: 'city-marker-wrapper',
+                html: `
+                    <div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">
+                        <div style="position:absolute;width:48px;height:48px;border-radius:50%;background:rgba(59,130,246,0.15);animation:markerPulse 2s ease-in-out infinite;"></div>
+                        <div style="position:absolute;width:32px;height:32px;border-radius:50%;background:rgba(59,130,246,0.25);animation:markerPulse 2s ease-in-out infinite 0.3s;"></div>
+                        <div style="width:16px;height:16px;border-radius:50%;background:#3b82f6;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(59,130,246,0.4);z-index:2;cursor:pointer;"></div>
+                    </div>`,
+                iconSize: [48, 48],
+                iconAnchor: [24, 24]
+            });
+
+            const marker = L.marker([city.lat, city.lng], { icon: pulseIcon }).addTo(saMap);
+            saMarkers[city.name] = marker;
+        });
+
+        // Build/rebuild city popups (called on language change)
+        function buildCityPopups() {
+            cityMarkerData.forEach(city => {
+                const avgLsm = (cityData[city.name].reduce((a, b) => a + b.lsm, 0) / cityData[city.name].length).toFixed(1);
+                const maxDensity = Math.max(...cityData[city.name].map(d => d.density));
+
+                saMarkers[city.name].bindPopup(`
+                    <div style="font-family:'Inter',sans-serif;min-width:180px;color:#1e293b;">
+                        <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:#1e293b;">${city.emoji} ${t(city.name)}</div>
+                        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;">
+                            <span style="color:#64748b;">${t('suburbs')}</span>
+                            <span style="font-weight:600;color:#334155;">${city.suburbs}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;">
+                            <span style="color:#64748b;">${t('avgLsm')}</span>
+                            <span style="font-weight:600;color:#334155;">${avgLsm}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;">
+                            <span style="color:#64748b;">${t('peakDensity')}</span>
+                            <span style="font-weight:600;color:#334155;">${maxDensity.toLocaleString()}/km²</span>
+                        </div>
+                        <button onclick="selectCity('${city.name}')" style="width:100%;margin-top:10px;padding:8px;background:linear-gradient(135deg,#3b82f6,#7c3aed);color:#fff;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:transform 0.15s;">${t('exploreSuburbs')}</button>
+                    </div>
+                `, { className: 'custom-popup' });
+            });
+        }
+        buildCityPopups();
+
+        // Add pulse animation style
+        const pulseStyle = document.createElement('style');
+        pulseStyle.textContent = `
+            @keyframes markerPulse {
+                0%,100% { transform: scale(1); opacity: 0.6; }
+                50% { transform: scale(1.5); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(pulseStyle);
+
+        // ════════════════════════════════════════
+        // LEAFLET SUBURB MAP
+        // ════════════════════════════════════════
+        const suburbMap = L.map('map', {
+            zoomControl: true,
+            scrollWheelZoom: true
+        }).setView([-26.13, 28.08], 11);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(suburbMap);
+
+        let suburbMarkers = L.layerGroup().addTo(suburbMap);
+
+        function drawSuburbMap(city) {
+            suburbMarkers.clearLayers();
             const data = cityData[city];
-            svg.selectAll("*").remove();
+            const center = cityCenters[city];
 
+            suburbMap.flyTo([center.lat, center.lng], center.zoom, { duration: 1.2 });
+
+            const maxDensity = Math.max(...data.map(d => d.density));
+
+            data.forEach(d => {
+                const radius = 6 + (d.density / maxDensity) * 20;
+
+                const circle = L.circleMarker([d.lat, d.lng], {
+                    radius: radius,
+                    fillColor: lsmColor(d.lsm),
+                    fillOpacity: 0.75,
+                    color: 'rgba(0,0,0,0.25)',
+                    weight: 1.5
+                }).addTo(suburbMarkers);
+
+                // Build infrastructure indicators HTML
+                const indicators = lsmIndicators(d.lsm);
+                const indicatorHTML = Object.entries(indicators)
+                    .map(([key, val]) => `
+                        <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:500;
+                            background:${val ? 'rgba(5,150,105,0.1)' : 'rgba(0,0,0,0.04)'};
+                            color:${val ? '#059669' : '#94a3b8'};">
+                            ${val ? '✓' : '✗'} ${key}
+                        </span>
+                    `).join('');
+
+                // Density bar percentage (relative to 80000 max)
+                const densityPct = Math.min((d.density / 80000) * 100, 100);
+
+                const popupId = `popup-${d.name.replace(/\s+/g, '-')}`;
+
+                const popupContent = `
+                    <div style="font-family:'Inter',sans-serif;width:280px;color:#1e293b;">
+                        <!-- Image area -->
+                        <div id="${popupId}-img" style="width:100%;height:140px;border-radius:8px 8px 0 0;overflow:hidden;margin:-12px -16px 12px -16px;width:calc(100% + 32px);background:linear-gradient(135deg,${lsmColor(d.lsm)}22,${lsmColor(d.lsm)}08);display:flex;align-items:center;justify-content:center;">
+                            <div style="text-align:center;padding:20px;">
+                                <div style="font-size:28px;margin-bottom:6px;">📷</div>
+                                <div style="font-size:11px;color:#94a3b8;">Loading image...</div>
+                            </div>
+                        </div>
+
+                        <!-- Header -->
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                            <div style="font-weight:700;font-size:16px;color:#1e293b;">${d.name}</div>
+                            <span style="padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;
+                                background:${lsmColor(d.lsm)}18;color:${lsmColor(d.lsm)};">
+                                LSM ${d.lsm}
+                            </span>
+                        </div>
+
+                        <!-- Description -->
+                        <p style="font-size:12px;line-height:1.5;color:#475569;margin-bottom:12px;border-left:3px solid ${lsmColor(d.lsm)};padding-left:10px;">
+                            ${lsmDescription(d.lsm)}
+                        </p>
+
+                        <!-- Density -->
+                        <div style="margin-bottom:12px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                <span style="font-size:11px;color:#64748b;font-weight:500;">${t('popDensity')}</span>
+                                <span style="font-size:12px;font-weight:700;color:#1e293b;">${d.density.toLocaleString()}/km²</span>
+                            </div>
+                            <div style="width:100%;height:6px;background:rgba(0,0,0,0.06);border-radius:3px;overflow:hidden;">
+                                <div style="width:${densityPct}%;height:100%;background:linear-gradient(90deg,${lsmColor(d.lsm)},${lsmColor(d.lsm)}aa);border-radius:3px;transition:width 0.5s ease;"></div>
+                            </div>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:3px;">${densityContext(d.density)}</div>
+                        </div>
+
+                        <!-- Infrastructure -->
+                        <div style="margin-bottom:4px;">
+                            <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">${t('infraTitle')}</div>
+                            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                                ${indicatorHTML}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const popup = circle.bindPopup(popupContent, {
+                    className: 'custom-popup',
+                    maxWidth: 320,
+                    minWidth: 280
+                });
+
+                // Load Wikipedia image when popup opens
+                circle.on('popupopen', async () => {
+                    const imgContainer = document.getElementById(`${popupId}-img`);
+                    if (!imgContainer) return;
+
+                    const imgUrl = await fetchWikiImage(d.name, city);
+                    if (imgUrl) {
+                        imgContainer.innerHTML = `<img src="${imgUrl}" alt="${d.name}" style="width:100%;height:140px;object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=\\'text-align:center;padding:30px;\\'><div style=\\'font-size:24px;\\'>🏘️</div><div style=\\'font-size:11px;color:#94a3b8;margin-top:4px;\\'>${d.name}</div></div>'"/>`;
+                    } else {
+                        imgContainer.innerHTML = `
+                            <div style="text-align:center;padding:30px;">
+                                <div style="font-size:28px;">🏘️</div>
+                                <div style="font-size:11px;color:#94a3b8;margin-top:4px;">${d.name}</div>
+                            </div>`;
+                    }
+                });
+
+                // Tooltip on hover
+                circle.bindTooltip(d.name, {
+                    permanent: false,
+                    direction: 'top',
+                    offset: [0, -radius],
+                    className: 'suburb-tooltip'
+                });
+            });
+        }
+
+        // Add suburb tooltip style
+        const tooltipStyle = document.createElement('style');
+        tooltipStyle.textContent = `
+            .suburb-tooltip {
+                background: rgba(255,255,255,0.95) !important;
+                border: 1px solid rgba(0,0,0,0.08) !important;
+                border-radius: 8px !important;
+                color: #1e293b !important;
+                font-family: 'Inter', sans-serif !important;
+                font-size: 12px !important;
+                font-weight: 500 !important;
+                padding: 4px 10px !important;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+            }
+            .suburb-tooltip::before {
+                border-top-color: rgba(255,255,255,0.95) !important;
+            }
+        `;
+        document.head.appendChild(tooltipStyle);
+
+        // ════════════════════════════════════════
+        // D3 BUBBLE CHART
+        // ════════════════════════════════════════
+        const d3Tooltip = d3.select("#d3-tooltip");
+
+        function drawChart(city) {
+            const container = document.getElementById('chart');
+            container.innerHTML = '';
+            const data = cityData[city];
+
+            const containerWidth = container.parentElement.clientWidth - 40;
+            const width = Math.min(containerWidth, 600);
+            const height = 400;
+            const padding = 55;
+
+            const svg = d3.select("#chart").append("svg")
+                .attr("viewBox", `0 0 ${width} ${height}`)
+                .attr("preserveAspectRatio", "xMidYMid meet");
+
+            // Scales
             const xScale = d3.scaleLinear()
-                .domain(d3.extent(data, d => d.lng))
+                .domain(d3.extent(data, d => d.lng)).nice()
                 .range([padding, width - padding]);
 
             const yScale = d3.scaleLinear()
-                .domain(d3.extent(data, d => d.lat))
+                .domain([0, 10])
                 .range([height - padding, padding]);
 
             const rScale = d3.scaleSqrt()
                 .domain([0, d3.max(data, d => d.density)])
-                .range([4, 15]);
+                .range([4, 22]);
 
-            const nodes = svg.selectAll("g")
+            // Grid lines
+            svg.append("g")
+                .attr("class", "grid")
+                .selectAll("line")
+                .data(yScale.ticks(5))
+                .enter()
+                .append("line")
+                .attr("x1", padding)
+                .attr("x2", width - padding)
+                .attr("y1", d => yScale(d))
+                .attr("y2", d => yScale(d))
+                .attr("stroke", "rgba(0,0,0,0.06)")
+                .attr("stroke-dasharray", "3,3");
+
+            // Axes
+            svg.append("g")
+                .attr("transform", `translate(0,${height - padding})`)
+                .call(d3.axisBottom(xScale).ticks(5).tickFormat(d => d.toFixed(1) + '°'))
+                .attr("color", "rgba(0,0,0,0.35)")
+                .selectAll("text,line,path")
+                .attr("color", "rgba(0,0,0,0.35)")
+                .style("font-size", "10px")
+                .style("font-family", "'Inter', sans-serif");
+
+            svg.append("g")
+                .attr("transform", `translate(${padding},0)`)
+                .call(d3.axisLeft(yScale).ticks(5))
+                .attr("color", "rgba(0,0,0,0.35)")
+                .selectAll("text,line,path")
+                .attr("color", "rgba(0,0,0,0.35)")
+                .style("font-size", "10px")
+                .style("font-family", "'Inter', sans-serif");
+
+            // Axis labels
+            svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", height - 10)
+                .attr("fill", "rgba(0,0,0,0.4)")
+                .attr("text-anchor", "middle")
+                .attr("font-size", "11px")
+                .attr("font-family", "'Inter', sans-serif")
+                .text(t('longitude'));
+
+            svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -height / 2)
+                .attr("y", 14)
+                .attr("fill", "rgba(0,0,0,0.4)")
+                .attr("text-anchor", "middle")
+                .attr("font-size", "11px")
+                .attr("font-family", "'Inter', sans-serif")
+                .text(t('lsmLevel'));
+
+            // Bubbles
+            const nodes = svg.selectAll(".bubble-group")
                 .data(data)
                 .enter()
                 .append("g")
-                .attr("transform", d => `translate(${xScale(d.lng)},${yScale(d.lat)})`);
+                .attr("class", "bubble-group")
+                .attr("transform", d => `translate(${xScale(d.lng)},${yScale(d.lsm)})`);
+
+            // Glow filter
+            const defs = svg.append("defs");
+            const filter = defs.append("filter").attr("id", "glow");
+            filter.append("feGaussianBlur").attr("stdDeviation", "3").attr("result", "coloredBlur");
+            const merge = filter.append("feMerge");
+            merge.append("feMergeNode").attr("in", "coloredBlur");
+            merge.append("feMergeNode").attr("in", "SourceGraphic");
 
             const circles = nodes.append("circle")
-                .attr("r", d => rScale(d.density))
-                .attr("fill", d => colorScale(d.lsm))
-                .attr("stroke", "#333")
+                .attr("r", 0)
+                .attr("fill", d => lsmColor(d.lsm))
+                .attr("fill-opacity", 0.7)
+                .attr("stroke", d => lsmColor(d.lsm))
                 .attr("stroke-width", 1)
-                .attr("opacity", 0.9);
+                .attr("stroke-opacity", 0.4)
+                .attr("filter", "url(#glow)")
+                .style("cursor", "pointer")
+                .transition()
+                .duration(600)
+                .delay((d, i) => i * 40)
+                .attr("r", d => rScale(d.density));
 
-            nodes.append("text")
+            // Labels with collision avoidance
+            const labelData = data.map((d, i) => ({
+                ...d,
+                x: xScale(d.lng),
+                y: yScale(d.lsm) - rScale(d.density) - 10,
+                ox: xScale(d.lng),
+                oy: yScale(d.lsm)
+            }));
+
+            // Run force simulation to resolve overlaps
+            const labelSim = d3.forceSimulation(labelData)
+                .force("x", d3.forceX(d => d.ox).strength(0.5))
+                .force("y", d3.forceY(d => d.oy - rScale(d.density) - 14).strength(0.6))
+                .force("collide", d3.forceCollide(22))
+                .stop();
+
+            for (let i = 0; i < 120; i++) labelSim.tick();
+
+            // Clamp labels within chart bounds
+            labelData.forEach(d => {
+                d.x = Math.max(padding + 20, Math.min(width - padding - 20, d.x));
+                d.y = Math.max(padding - 5, Math.min(height - padding - 10, d.y));
+            });
+
+            // Connector lines from label to bubble center
+            svg.selectAll(".label-line")
+                .data(labelData)
+                .enter()
+                .append("line")
+                .attr("class", "label-line")
+                .attr("x1", d => d.ox)
+                .attr("y1", d => d.oy)
+                .attr("x2", d => d.x)
+                .attr("y2", d => d.y + 4)
+                .attr("stroke", "rgba(0,0,0,0.1)")
+                .attr("stroke-width", 0.8)
+                .attr("stroke-dasharray", "2,2")
+                .attr("opacity", 0)
+                .transition()
+                .duration(400)
+                .delay((d, i) => 300 + i * 40)
+                .attr("opacity", d => {
+                    const dist = Math.hypot(d.x - d.ox, d.y - d.oy);
+                    return dist > 15 ? 1 : 0;
+                });
+
+            // Labels
+            svg.selectAll(".suburb-label")
+                .data(labelData)
+                .enter()
+                .append("text")
+                .attr("class", "suburb-label")
                 .text(d => d.name)
-                .attr("class", "label")
-                .attr("dy", -12)
-                .attr("text-anchor", "middle");
+                .attr("x", d => d.x)
+                .attr("y", d => d.y)
+                .attr("text-anchor", "middle")
+                .attr("fill", "rgba(0,0,0,0.6)")
+                .attr("font-size", "9px")
+                .attr("font-weight", "500")
+                .attr("font-family", "'Inter', sans-serif")
+                .attr("pointer-events", "none")
+                .attr("opacity", 0)
+                .transition()
+                .duration(400)
+                .delay((d, i) => 300 + i * 40)
+                .attr("opacity", 1);
 
-            circles.on("mouseover", function (event, d) {
-                d3.selectAll("circle").attr("opacity", 0.15);
+            // Interactions
+            nodes.selectAll("circle")
+                .on("mouseover", function (event, d) {
+                    d3.selectAll(".bubble-group circle").attr("fill-opacity", 0.15).attr("stroke-opacity", 0.1);
+                    d3.select(this.parentNode).raise();
+                    d3.select(this)
+                        .attr("fill-opacity", 0.9)
+                        .attr("stroke-opacity", 0.8)
+                        .attr("stroke-width", 2.5)
+                        .transition().duration(200)
+                        .attr("r", rScale(d.density) * 1.4);
 
-                d3.select(this.parentNode).raise();
-                d3.select(this)
-                    .attr("opacity", 1)
-                    .attr("stroke-width", 3)
-                    .attr("stroke", "#000")
-                    .transition().duration(150)
-                    .attr("r", rScale(d.density) * 2.5);
-
-                tooltip.style("opacity", 1)
-                    .html(`<strong>${d.name}</strong><br>LSM: ${d.lsm}<br>Density: ${d.density.toLocaleString()}/km²`)
-                    .style("left", (event.pageX + 15) + "px")
-                    .style("top", (event.pageY - 28) + "px");
-            })
-                .on("mouseout", function (event, d) {
-                    d3.selectAll("circle")
-                        .attr("opacity", 0.9)
+                    d3Tooltip.style("opacity", 1)
+                        .html(`<strong>${d.name}</strong>LSM: ${d.lsm} (${lsmLabel(d.lsm)})<br>${t('density')}: ${d.density.toLocaleString()}/km²`)
+                        .style("left", (event.clientX + 15) + "px")
+                        .style("top", (event.clientY - 10) + "px");
+                })
+                .on("mousemove", function (event) {
+                    d3Tooltip
+                        .style("left", (event.clientX + 15) + "px")
+                        .style("top", (event.clientY - 10) + "px");
+                })
+                .on("mouseout", function () {
+                    d3.selectAll(".bubble-group circle")
+                        .attr("fill-opacity", 0.7)
+                        .attr("stroke-opacity", 0.4)
                         .attr("stroke-width", 1)
-                        .transition().duration(150)
+                        .transition().duration(200)
                         .attr("r", d => rScale(d.density));
-
-                    tooltip.style("opacity", 0);
+                    d3Tooltip.style("opacity", 0);
                 });
         }
 
-        drawMap("Johannesburg");
+        // ════════════════════════════════════════
+        // STATS UPDATE
+        // ════════════════════════════════════════
+        function updateStats(city) {
+            const data = cityData[city];
+            const avgLsm = (data.reduce((a, b) => a + b.lsm, 0) / data.length).toFixed(1);
+            const maxDensity = Math.max(...data.map(d => d.density));
+            const minDensity = Math.min(...data.map(d => d.density));
+
+            animateValue('stat-areas', data.length);
+            document.getElementById('stat-avg-lsm').textContent = avgLsm;
+            animateValue('stat-max-density', maxDensity, '/km²');
+            animateValue('stat-min-density', minDensity, '/km²');
+        }
+
+        function animateValue(id, target, suffix = '') {
+            const el = document.getElementById(id);
+            const duration = 600;
+            const start = performance.now();
+            const startVal = parseInt(el.textContent.replace(/[^0-9]/g, '')) || 0;
+
+            function step(now) {
+                const progress = Math.min((now - start) / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.round(startVal + (target - startVal) * eased);
+                el.textContent = current.toLocaleString() + suffix;
+                if (progress < 1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        }
+
+        // ════════════════════════════════════════
+        // CITY SELECTION
+        // ════════════════════════════════════════
+        let currentCity = 'Johannesburg';
+
+        function selectCity(city) {
+            currentCity = city;
+
+            // Update buttons
+            document.querySelectorAll('.city-btn').forEach(btn => btn.classList.remove('active'));
+            const btnId = `btn-${city.replace(/\s/g, '')}`;
+            const btn = document.getElementById(btnId);
+            if (btn) btn.classList.add('active');
+
+            // Update panel titles
+            document.getElementById('map-title').textContent = `${t(city)} — ${t('suburbMap')}`;
+            document.getElementById('chart-title').textContent = `${t(city)} — ${t('bubbleChart')}`;
+
+            // Draw everything
+            drawSuburbMap(city);
+            drawChart(city);
+            updateStats(city);
+
+            // Fly SA overview to the city
+            const center = cityCenters[city];
+            saMap.flyTo([center.lat, center.lng], 8, { duration: 1.5 });
+
+            // Scroll to details
+            document.getElementById('city-nav').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // ════════════════════════════════════════
+        // LANGUAGE SYSTEM
+        // ════════════════════════════════════════
+        function setLanguage(lang) {
+            currentLang = lang;
+
+            // Update toggle buttons
+            document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+            document.getElementById('lang-ja').classList.toggle('active', lang === 'ja');
+
+            // Update html lang
+            document.documentElement.lang = lang;
+
+            // Update all data-i18n elements
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                el.textContent = t(key);
+            });
+
+            // Update all data-i18n-html elements (for HTML content like footer)
+            document.querySelectorAll('[data-i18n-html]').forEach(el => {
+                const key = el.getAttribute('data-i18n-html');
+                el.innerHTML = t(key);
+            });
+
+            // Re-render city-specific content
+            buildCityPopups();
+            selectCity(currentCity);
+        }
+
+        // ════════════════════════════════════════
+        // INIT
+        // ════════════════════════════════════════
+        selectCity('Johannesburg');
+
+        // Handle resize for D3
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => drawChart(currentCity), 250);
+        });
     </script>
 </body>
 
